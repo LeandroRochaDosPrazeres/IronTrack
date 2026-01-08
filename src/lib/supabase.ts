@@ -12,23 +12,25 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     }
 })
 
-// Auth helpers
-export const signInWithGoogle = async () => {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
+// Email/Password helpers
+export const signUpWithEmail = async (email: string, password: string, name: string, age: string) => {
+    const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
         options: {
-            redirectTo: window.location.origin
+            data: {
+                name,
+                age
+            }
         }
     })
     return { data, error }
 }
 
-export const signInWithApple = async () => {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'apple',
-        options: {
-            redirectTo: window.location.origin
-        }
+export const signInWithEmail = async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
     })
     return { data, error }
 }
