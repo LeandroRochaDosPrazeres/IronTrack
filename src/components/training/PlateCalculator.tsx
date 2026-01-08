@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { Modal, Button } from '../ui'
+import { Modal } from '../ui'
 
 interface PlateCalculatorProps {
     isOpen: boolean

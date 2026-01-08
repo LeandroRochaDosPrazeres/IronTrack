@@ -9,7 +9,7 @@ import { exerciseDatabase } from '@/data/exercises'
 
 const App: React.FC = () => {
     const { setUser, setLoading } = useAuthStore()
-    const { exercises, loadExercises } = useExerciseStore()
+    const { loadExercises } = useExerciseStore()
 
     // Initialize auth listener
     useEffect(() => {

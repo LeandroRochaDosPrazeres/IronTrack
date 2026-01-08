@@ -11,6 +11,7 @@ export const Analytics: React.FC = () => {
     const [bodyMeasurements, setBodyMeasurements] = useState<BodyMeasurement[]>([])
     const [newWeight, setNewWeight] = useState('')
     const [activeTab, setActiveTab] = useState<'volume' | 'frequency' | 'body'>('volume')
+    const [showWeightModal, setShowWeightModal] = useState(false)
 
     useEffect(() => {
         const loadData = async () => {

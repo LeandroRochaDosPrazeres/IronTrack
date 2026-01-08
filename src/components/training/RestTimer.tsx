@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useTrainingStore } from '@/stores'
-import { Button, PauseIcon, PlayIcon, XIcon } from '../ui'
+import { Button, XIcon } from '../ui'
 
 interface RestTimerProps {
     onClose: () => void
@@ -16,11 +16,9 @@ export const RestTimer: React.FC<RestTimerProps> = ({ onClose }) => {
     } = useTrainingStore()
 
     const [timeLeft, setTimeLeft] = useState(restTimerSeconds)
-    const [isPaused, setIsPaused] = useState(false)
-    const [pausedAt, setPausedAt] = useState<number | null>(null)
 
     useEffect(() => {
-        if (!restTimerActive || !restTimerStarted || isPaused) return
+        if (!restTimerActive || !restTimerStarted) return
 
         const interval = setInterval(() => {
             const elapsed = Math.floor((Date.now() - restTimerStarted) / 1000)
@@ -53,7 +51,7 @@ export const RestTimer: React.FC<RestTimerProps> = ({ onClose }) => {
         }, 100)
 
         return () => clearInterval(interval)
-    }, [restTimerActive, restTimerStarted, restTimerSeconds, isPaused, stopRestTimer, onClose])
+    }, [restTimerActive, restTimerStarted, restTimerSeconds, stopRestTimer, onClose])
 
     const formatTime = useCallback((seconds: number) => {
         const mins = Math.floor(seconds / 60)
