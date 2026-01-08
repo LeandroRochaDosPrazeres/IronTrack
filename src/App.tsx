@@ -8,6 +8,7 @@ import { db } from '@/lib/db'
 import { exerciseDatabase } from '@/data/exercises'
 
 const App: React.FC = () => {
+    // App Version 1.0.1 - Build Fixes Applied
     const { setUser, setLoading } = useAuthStore()
     const { loadExercises } = useExerciseStore()
 
