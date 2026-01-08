@@ -1,6 +1,6 @@
 # IronTrack Ultra Professional V1
 
-A ferramenta de musculação mais completa do mercado iOS, operando como PWA (Progressive Web App).
+A ferramenta de musculação para iOS, operando como PWA (Progressive Web App).
 
 ## 🚀 Features
 
