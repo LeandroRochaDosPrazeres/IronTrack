@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore, useWorkoutStore, useTrainingStore } from '@/stores'
+import { db } from '@/lib/db'
 import { Button, Card, StatCard, PlayIcon, FireIcon, TrophyIcon, CalendarIcon } from '@/components/ui'
 
 export const Home: React.FC = () => {
@@ -8,10 +9,60 @@ export const Home: React.FC = () => {
     const { user } = useAuthStore()
     const { activeProgram, loadPrograms } = useWorkoutStore()
     const { isWorkoutActive } = useTrainingStore()
+    const [monthlyWorkouts, setMonthlyWorkouts] = useState(0)
+    const [streak, setStreak] = useState(0)
 
     useEffect(() => {
         const userId = user?.id || 'local-guest-user'
         loadPrograms(userId)
+
+        // Carregar estatísticas reais
+        const loadStats = async () => {
+            const sessions = await db.workoutSessions.toArray()
+
+            // Treinos do Mês
+            const now = new Date()
+            const workoutsThisMonth = sessions.filter((s) => {
+                if (!s.started_at) return false
+                const date = new Date(s.started_at)
+                return date.getMonth() === now.getMonth() &&
+                    date.getFullYear() === now.getFullYear()
+            }).length
+            setMonthlyWorkouts(workoutsThisMonth)
+
+            // Streak (Dias Seguidos)
+            const uniqueDates = [...new Set(sessions
+                .filter(s => s.started_at) // garantir que tem data
+                .map(s => new Date(s.started_at).toISOString().split('T')[0])
+            )].sort().reverse()
+
+            let currentStreak = 0
+            if (uniqueDates.length > 0) {
+                const today = new Date().toISOString().split('T')[0]
+                const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]
+
+                // Se o ultimo treino foi hoje ou ontem, o streak ta vivo
+                if (uniqueDates[0] === today || uniqueDates[0] === yesterday) {
+                    currentStreak = 1
+                    // Checar dias anteriores
+                    for (let i = 0; i < uniqueDates.length - 1; i++) {
+                        const curr = new Date(uniqueDates[i])
+                        const prev = new Date(uniqueDates[i + 1])
+                        const diffTime = Math.abs(curr.getTime() - prev.getTime())
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+                        if (diffDays === 1) {
+                            currentStreak++
+                        } else {
+                            break
+                        }
+                    }
+                }
+            }
+            setStreak(currentStreak)
+        }
+
+        loadStats()
     }, [user, loadPrograms])
 
     const getGreeting = () => {
@@ -62,8 +113,8 @@ export const Home: React.FC = () => {
             )}
 
             <div className="grid-2 mb-lg">
-                <StatCard value="12" label="Treinos este mês" icon={<FireIcon size={24} className="text-accent" />} />
-                <StatCard value="3" label="Dias seguidos" icon={<CalendarIcon size={24} className="text-accent" />} />
+                <StatCard value={monthlyWorkouts.toString()} label="Treinos este mês" icon={<FireIcon size={24} className="text-accent" />} />
+                <StatCard value={streak.toString()} label="Dias seguidos" icon={<CalendarIcon size={24} className="text-accent" />} />
             </div>
 
             {activeProgram ? (

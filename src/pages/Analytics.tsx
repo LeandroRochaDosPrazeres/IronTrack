@@ -3,12 +3,18 @@ import { useAuthStore } from '@/stores'
 import { db, generateId } from '@/lib/db'
 import { Button, Card, StatCard, FireIcon, TrophyIcon, Modal, Input, PlusIcon } from '@/components/ui'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts'
+import { MuscleHeatmap } from '@/components/analytics/MuscleHeatmap'
 import type { WorkoutSession, BodyMeasurement } from '@/types'
 
 export const Analytics: React.FC = () => {
     const { user } = useAuthStore()
     const [sessions, setSessions] = useState<WorkoutSession[]>([])
     const [bodyMeasurements, setBodyMeasurements] = useState<BodyMeasurement[]>([])
+
+    // Muscle Stats State
+    const [muscleCounts, setMuscleCounts] = useState<Record<string, number>>({})
+    const [muscleIntensities, setMuscleIntensities] = useState<Record<string, number>>({})
+
     const [newWeight, setNewWeight] = useState('')
     const [activeTab, setActiveTab] = useState<'volume' | 'frequency' | 'body'>('volume')
     const [showWeightModal, setShowWeightModal] = useState(false)
@@ -17,17 +23,16 @@ export const Analytics: React.FC = () => {
         const loadData = async () => {
             const userId = user?.id || 'local-guest-user'
 
+            // 1. Sessions
             const sessionsData = await db.workoutSessions
                 .where('user_id')
                 .equals(userId)
                 .reverse()
-                .limit(30)
+                .limit(50)
                 .toArray()
             setSessions(sessionsData)
 
-            // const logsData = await db.setLogs.limit(500).toArray()
-            // setSetLogs(logsData)
-
+            // 2. Body Measurements
             const bodyData = await db.bodyMeasurements
                 .where('user_id')
                 .equals(userId)
@@ -35,6 +40,61 @@ export const Analytics: React.FC = () => {
                 .limit(30)
                 .toArray()
             setBodyMeasurements(bodyData)
+
+            // 3. Muscle Data (Heatmap & Frequency)
+            // Need to join: Sessions -> SetLogs -> Exercises -> MuscleGroups
+
+            // Fetch all exercises to map IDs to muscles
+            const exercises = await db.exercises.toArray()
+            const exerciseMap = new Map(exercises.map(e => [e.id, e.muscle_groups]))
+
+            // Fetch recent logs (last 30 days essentially, or just last 500 sets)
+            const logsData = await db.setLogs.limit(1000).toArray()
+
+            // Create map of SessionID -> Date
+            const sessionDateMap = new Map(sessionsData.map(s => [s.id, new Date(s.started_at)]))
+
+            // Aggregators
+            const counts: Record<string, number> = {}
+            const lastTrained: Record<string, Date> = {}
+
+            logsData.forEach(log => {
+                const sessionDate = sessionDateMap.get(log.session_id)
+                if (!sessionDate) return // Skip if session not in loaded range
+
+                const muscles = exerciseMap.get(log.exercise_id) || []
+
+                muscles.forEach(muscle => {
+                    // Normalize muscle name (lowercase)
+                    const m = muscle.toLowerCase()
+
+                    // Frequency Count
+                    counts[m] = (counts[m] || 0) + 1
+
+                    // Last Trained for Heatmap
+                    if (!lastTrained[m] || sessionDate > lastTrained[m]) {
+                        lastTrained[m] = sessionDate
+                    }
+                })
+            })
+
+            setMuscleCounts(counts)
+
+            // Calculate Intensities based on Recovery Time
+            // < 24h: 4, < 48h: 3, < 72h: 2, < 96h: 1, else 0
+            const now = new Date()
+            const intensities: Record<string, number> = {}
+
+            Object.entries(lastTrained).forEach(([muscle, date]) => {
+                const diffHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60)
+
+                if (diffHours < 24) intensities[muscle] = 4
+                else if (diffHours < 48) intensities[muscle] = 3
+                else if (diffHours < 72) intensities[muscle] = 2
+                else if (diffHours < 96) intensities[muscle] = 1
+                else intensities[muscle] = 0
+            })
+            setMuscleIntensities(intensities)
         }
 
         loadData()
@@ -93,15 +153,15 @@ export const Analytics: React.FC = () => {
     }, [sessions])
 
     const muscleFrequency = useMemo(() => {
-        // Mock data - in real app, calculate from set_logs
-        return [
-            { muscle: 'Peito', count: 3 },
-            { muscle: 'Costas', count: 3 },
-            { muscle: 'Pernas', count: 2 },
-            { muscle: 'Ombros', count: 2 },
-            { muscle: 'Braços', count: 4 },
-        ]
-    }, [])
+        // Convert counts object to array for chart
+        return Object.entries(muscleCounts)
+            .map(([muscle, count]) => ({
+                muscle: muscle.charAt(0).toUpperCase() + muscle.slice(1), // Capitalize
+                count
+            }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 10) // Top 10
+    }, [muscleCounts])
 
     return (
         <div className="page">
@@ -209,31 +269,43 @@ export const Analytics: React.FC = () => {
             {activeTab === 'frequency' && (
                 <Card className="chart-container">
                     <h3 className="chart-title">Frequência por Grupo Muscular</h3>
-                    <ResponsiveContainer width="100%" height={200}>
-                        <BarChart data={muscleFrequency} layout="vertical">
-                            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-                            <XAxis type="number" stroke="var(--color-text-secondary)" fontSize={12} />
-                            <YAxis
-                                type="category"
-                                dataKey="muscle"
-                                stroke="var(--color-text-secondary)"
-                                fontSize={12}
-                                width={60}
-                            />
-                            <Tooltip
-                                contentStyle={{
-                                    background: 'var(--color-bg-elevated)',
-                                    border: '1px solid var(--color-border)',
-                                    borderRadius: 'var(--radius-md)'
-                                }}
-                            />
-                            <Bar
-                                dataKey="count"
-                                fill="var(--color-accent)"
-                                radius={[0, 4, 4, 0]}
-                            />
-                        </BarChart>
-                    </ResponsiveContainer>
+                    {muscleFrequency.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={200}>
+                            <BarChart data={muscleFrequency} layout="vertical">
+                                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                                <XAxis type="number" stroke="var(--color-text-secondary)" fontSize={12} />
+                                <YAxis
+                                    type="category"
+                                    dataKey="muscle"
+                                    stroke="var(--color-text-secondary)"
+                                    fontSize={12}
+                                    width={60}
+                                />
+                                <Tooltip
+                                    contentStyle={{
+                                        background: 'var(--color-bg-elevated)',
+                                        border: '1px solid var(--color-border)',
+                                        borderRadius: 'var(--radius-md)'
+                                    }}
+                                />
+                                <Bar
+                                    dataKey="count"
+                                    fill="var(--color-accent)"
+                                    radius={[0, 4, 4, 0]}
+                                />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    ) : (
+                        <div style={{
+                            height: 200,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'var(--color-text-secondary)'
+                        }}>
+                            Nenhum dado registrado
+                        </div>
+                    )}
                 </Card>
             )}
 
@@ -323,61 +395,11 @@ export const Analytics: React.FC = () => {
                 </>
             )}
 
-            {/* Muscle Heatmap Preview */}
+            {/* Muscle Heatmap Section */}
             <section style={{ marginTop: 'var(--spacing-lg)' }}>
                 <h3 style={{ marginBottom: 'var(--spacing-md)' }}>Mapa de Calor Muscular</h3>
                 <Card>
-                    <div className="heatmap-container">
-                        <svg width="180" height="300" viewBox="0 0 180 300">
-                            {/* Simplified body silhouette */}
-                            {/* Head */}
-                            <circle cx="90" cy="25" r="20" className="muscle-group intensity-0" />
-
-                            {/* Neck/Traps */}
-                            <path d="M80,45 L100,45 L105,60 L75,60 Z" className="muscle-group intensity-2" />
-
-                            {/* Shoulders */}
-                            <ellipse cx="55" cy="70" rx="18" ry="12" className="muscle-group intensity-3" />
-                            <ellipse cx="125" cy="70" rx="18" ry="12" className="muscle-group intensity-3" />
-
-                            {/* Chest */}
-                            <path d="M60,65 L120,65 L125,100 L55,100 Z" className="muscle-group intensity-4" />
-
-                            {/* Abs */}
-                            <rect x="65" y="100" width="50" height="50" rx="5" className="muscle-group intensity-2" />
-
-                            {/* Arms */}
-                            <rect x="35" y="75" width="15" height="55" rx="7" className="muscle-group intensity-3" />
-                            <rect x="130" y="75" width="15" height="55" rx="7" className="muscle-group intensity-3" />
-
-                            {/* Forearms */}
-                            <rect x="32" y="130" width="12" height="40" rx="5" className="muscle-group intensity-1" />
-                            <rect x="136" y="130" width="12" height="40" rx="5" className="muscle-group intensity-1" />
-
-                            {/* Quads */}
-                            <rect x="60" y="155" width="25" height="60" rx="8" className="muscle-group intensity-2" />
-                            <rect x="95" y="155" width="25" height="60" rx="8" className="muscle-group intensity-2" />
-
-                            {/* Calves */}
-                            <rect x="62" y="220" width="20" height="50" rx="8" className="muscle-group intensity-1" />
-                            <rect x="98" y="220" width="20" height="50" rx="8" className="muscle-group intensity-1" />
-                        </svg>
-
-                        <div className="heatmap-legend">
-                            <div className="legend-item">
-                                <div className="legend-color" style={{ background: 'var(--color-bg-tertiary)' }} />
-                                <span>Recuperado</span>
-                            </div>
-                            <div className="legend-item">
-                                <div className="legend-color" style={{ background: 'rgba(255, 107, 53, 0.5)' }} />
-                                <span>Moderado</span>
-                            </div>
-                            <div className="legend-item">
-                                <div className="legend-color" style={{ background: 'var(--color-accent)' }} />
-                                <span>Fadigado</span>
-                            </div>
-                        </div>
-                    </div>
+                    <MuscleHeatmap intensities={muscleIntensities} />
                 </Card>
             </section>
         </div>

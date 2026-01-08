@@ -11,6 +11,7 @@ export const Profile: React.FC = () => {
     const [isLoginMode, setIsLoginMode] = useState(true)
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [showSuccess, setShowSuccess] = useState(false)
 
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
@@ -37,11 +38,27 @@ export const Profile: React.FC = () => {
                 }
                 const { error } = await signUpWithEmail(email, password, name, age)
                 if (error) throw error
+                // Sucesso no cadastro!
+                setShowSuccess(true)
             }
         } catch (err: any) {
             setError(err.message || 'Ocorreu um erro. Tente novamente.')
         } finally {
             setIsLoading(false)
+        }
+    }
+
+    const handleShare = () => {
+        const text = `Estou treinando com o IronTrack! 🚀\nJunte-se a mim e acompanhe meus progressos.`
+        if (navigator.share) {
+            navigator.share({
+                title: 'IronTrack',
+                text: text,
+                url: window.location.origin
+            }).catch(() => { })
+        } else {
+            navigator.clipboard.writeText(text)
+            alert('Link copiado para a área de transferência!')
         }
     }
 
@@ -53,103 +70,127 @@ export const Profile: React.FC = () => {
                 </header>
 
                 <Card style={{ padding: 'var(--spacing-xl)' }}>
-                    <div style={{
-                        width: '80px',
-                        height: '80px',
-                        borderRadius: 'var(--radius-full)',
-                        background: 'var(--color-bg-tertiary)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        margin: '0 auto var(--spacing-lg)'
-                    }}>
-                        <UserIcon size={40} className="text-secondary" />
-                    </div>
-
-                    <h3 style={{ marginBottom: 'var(--spacing-sm)', textAlign: 'center' }}>
-                        {isLoginMode ? 'Bem-vindo de volta' : 'Crie sua conta'}
-                    </h3>
-                    <p className="text-secondary" style={{ marginBottom: 'var(--spacing-xl)', textAlign: 'center' }}>
-                        {isLoginMode
-                            ? 'Entre para sincronizar seus treinos'
-                            : 'Registre-se para salvar seu progresso na nuvem'}
-                    </p>
-
-                    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
-                        {!isLoginMode && (
-                            <>
-                                <Input
-                                    label="Nome Completo"
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                    placeholder="Seu nome"
-                                    required
-                                />
-                                <Input
-                                    label="Idade"
-                                    type="number"
-                                    value={age}
-                                    onChange={(e) => setAge(e.target.value)}
-                                    placeholder="Sua idade"
-                                    required
-                                />
-                            </>
-                        )}
-
-                        <Input
-                            label="Email"
-                            type="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            placeholder="seu@email.com"
-                            required
-                        />
-
-                        <Input
-                            label="Senha"
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            placeholder="******"
-                            required
-                        />
-
-                        {error && (
+                    {showSuccess ? (
+                        <div style={{ textAlign: 'center' }}>
                             <div style={{
-                                color: 'var(--color-error)',
-                                fontSize: 'var(--font-size-sm)',
-                                textAlign: 'center',
-                                padding: 'var(--spacing-sm)',
-                                background: 'rgba(255, 59, 48, 0.1)',
-                                borderRadius: 'var(--radius-sm)'
+                                width: '80px', height: '80px', margin: '0 auto var(--spacing-lg)',
+                                borderRadius: '50%', background: 'rgba(52, 199, 89, 0.1)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center'
                             }}>
-                                {error}
+                                <span style={{ fontSize: '40px' }}>✅</span>
                             </div>
-                        )}
-
-                        <Button type="submit" block disabled={isLoading}>
-                            {isLoading ? 'Carregando...' : (isLoginMode ? 'Entrar' : 'Cadastrar')}
-                        </Button>
-
-                        <div style={{ textAlign: 'center', marginTop: 'var(--spacing-sm)' }}>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setIsLoginMode(!isLoginMode)
-                                    setError(null)
-                                }}
-                                style={{
-                                    background: 'none',
-                                    border: 'none',
-                                    color: 'var(--color-accent)',
-                                    fontSize: 'var(--font-size-sm)',
-                                    cursor: 'pointer'
-                                }}
-                            >
-                                {isLoginMode ? 'Não tem conta? Cadastre-se' : 'Já tem conta? Entre'}
-                            </button>
+                            <h3 style={{ marginBottom: 'var(--spacing-sm)' }}>Conta Criada!</h3>
+                            <p className="text-secondary" style={{ marginBottom: 'var(--spacing-xl)' }}>
+                                Seu cadastro foi realizado com sucesso. Agora você pode entrar e sincronizar seus treinos.
+                            </p>
+                            <Button block onClick={() => {
+                                setShowSuccess(false)
+                                setIsLoginMode(true)
+                            }}>
+                                Fazer Login
+                            </Button>
                         </div>
-                    </form>
+                    ) : (
+                        <>
+                            <div style={{
+                                width: '80px',
+                                height: '80px',
+                                borderRadius: 'var(--radius-full)',
+                                background: 'var(--color-bg-tertiary)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                margin: '0 auto var(--spacing-lg)'
+                            }}>
+                                <UserIcon size={40} className="text-secondary" />
+                            </div>
+
+                            <h3 style={{ marginBottom: 'var(--spacing-sm)', textAlign: 'center' }}>
+                                {isLoginMode ? 'Bem-vindo de volta' : 'Crie sua conta'}
+                            </h3>
+                            <p className="text-secondary" style={{ marginBottom: 'var(--spacing-xl)', textAlign: 'center' }}>
+                                {isLoginMode
+                                    ? 'Entre para sincronizar seus treinos'
+                                    : 'Registre-se para salvar seu progresso na nuvem'}
+                            </p>
+
+                            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+                                {!isLoginMode && (
+                                    <>
+                                        <Input
+                                            label="Nome Completo"
+                                            value={name}
+                                            onChange={(e) => setName(e.target.value)}
+                                            placeholder="Seu nome"
+                                            required
+                                        />
+                                        <Input
+                                            label="Idade"
+                                            type="number"
+                                            value={age}
+                                            onChange={(e) => setAge(e.target.value)}
+                                            placeholder="Sua idade"
+                                            required
+                                        />
+                                    </>
+                                )}
+
+                                <Input
+                                    label="Email"
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    placeholder="seu@email.com"
+                                    required
+                                />
+
+                                <Input
+                                    label="Senha"
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    placeholder="******"
+                                    required
+                                />
+
+                                {error && (
+                                    <div style={{
+                                        color: 'var(--color-error)',
+                                        fontSize: 'var(--font-size-sm)',
+                                        textAlign: 'center',
+                                        padding: 'var(--spacing-sm)',
+                                        background: 'rgba(255, 59, 48, 0.1)',
+                                        borderRadius: 'var(--radius-sm)'
+                                    }}>
+                                        {error}
+                                    </div>
+                                )}
+
+                                <Button type="submit" block disabled={isLoading}>
+                                    {isLoading ? 'Carregando...' : (isLoginMode ? 'Entrar' : 'Cadastrar')}
+                                </Button>
+
+                                <div style={{ textAlign: 'center', marginTop: 'var(--spacing-sm)' }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setIsLoginMode(!isLoginMode)
+                                            setError(null)
+                                        }}
+                                        style={{
+                                            background: 'none',
+                                            border: 'none',
+                                            color: 'var(--color-accent)',
+                                            fontSize: 'var(--font-size-sm)',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        {isLoginMode ? 'Não tem conta? Cadastre-se' : 'Já tem conta? Entre'}
+                                    </button>
+                                </div>
+                            </form>
+                        </>
+                    )}
                 </Card>
             </div>
         )
@@ -208,21 +249,24 @@ export const Profile: React.FC = () => {
                         <ListItem
                             icon={<TrophyIcon size={24} />}
                             title="Conquistas"
-                            subtitle="Veja suas medalhas e recordes"
+                            subtitle="Ver Estatísticas Detalhadas"
+                            onClick={() => window.location.href = '/analytics'}
                         />
                     </li>
                     <li>
                         <ListItem
                             icon={<ShareIcon size={24} />}
                             title="Compartilhar Treino"
-                            subtitle="Crie cards para stories"
+                            subtitle="Convide amigos"
+                            onClick={handleShare}
                         />
                     </li>
                     <li>
                         <ListItem
                             icon={<SettingsIcon size={24} />}
                             title="Configurações"
-                            subtitle="Notificações, tema, unidades"
+                            subtitle="Versão do App: 1.0.0"
+                            onClick={() => alert('Configurações em breve!')}
                         />
                     </li>
                 </ul>
