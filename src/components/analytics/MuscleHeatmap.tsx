@@ -1,5 +1,4 @@
 import React from 'react'
-import type { MuscleGroup } from '@/types'
 
 interface MuscleHeatmapProps {
     intensities: Record<string, number>
