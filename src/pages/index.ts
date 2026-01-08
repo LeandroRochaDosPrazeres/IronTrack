@@ -1,0 +1,6 @@
+export { Home } from './Home'
+export { Workouts } from './Workouts'
+export { ProgramDetail } from './ProgramDetail'
+export { Training } from './Training'
+export { Analytics } from './Analytics'
+export { Profile } from './Profile'
